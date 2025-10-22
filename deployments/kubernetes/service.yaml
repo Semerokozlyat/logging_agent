@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: logging-agent
+  namespace: logging-system
+  labels:
+    app.kubernetes.io/name: logging-agent
+    app.kubernetes.io/component: monitoring
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+spec:
+  clusterIP: None  # Headless service for DaemonSet
+  selector:
+    app.kubernetes.io/name: logging-agent
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

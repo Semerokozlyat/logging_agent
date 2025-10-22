@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logging-agent-config
+  namespace: logging-system
+  labels:
+    app.kubernetes.io/name: logging-agent
+    app.kubernetes.io/component: monitoring
+data:
+  agent.yaml: |
+    # Logging Agent Configuration
+    log_level: "info"
+    
+    # Node log paths to monitor
+    log_paths:
+      - /var/log/containers/*.log
+      - /var/log/pods/**/*.log
+    
+    # Output configuration
+    output:
+      type: "stdout"  # Can be: stdout, file, elasticsearch, etc.
+      buffer_size: 1024
+    
+    # Collection settings
+    collection:
+      interval: "10s"
+      batch_size: 100
+      max_line_length: 16384
+    
+    # Health check settings
+    health:
+      enabled: true
+      port: 8080
+      path: "/health"
+    
+    # Node identification
+    node:
+      # Will be populated from downward API
+      name: ""
+      labels: {}

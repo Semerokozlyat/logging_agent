@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-logging-app
+  labels:
+    app: test-logger
+spec:
+  containers:
+    - name: logger
+      image: busybox
+      command:
+        - sh
+        - -c
+        - |
+          echo "Starting test logger..."
+          counter=0
+          while true; do
+            echo "[INFO] Test log message $counter from test-logging-app"
+            echo "[ERROR] Simulated error $counter"
+            echo "[DEBUG] Debug information $counter"
+            counter=$((counter+1))
+            sleep 3
+          done
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-json-logger
+  labels:
+    app: json-logger
+spec:
+  containers:
+    - name: json-logger
+      image: busybox
+      command:
+        - sh
+        - -c
+        - |
+          echo "Starting JSON logger..."
+          counter=0
+          while true; do
+            echo "{\"level\":\"info\",\"message\":\"JSON log $counter\",\"timestamp\":\"$(date -Iseconds)\",\"pod\":\"test-json-logger\"}"
+            counter=$((counter+1))
+            sleep 5
+          done
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi

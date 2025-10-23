@@ -31,12 +31,8 @@ func InitMetricsCollector() {
 }
 
 func MakeLabelsForLogLine(fileNamePattern, nodeName string) prometheus.Labels {
-	l := make(map[string]string, 2)
-	if fileNamePattern != "" {
-		l[logFileNamePatternLabel] = fileNamePattern
+	return map[string]string{
+		logFileNamePatternLabel: fileNamePattern,
+		nodeNameLabel:           nodeName,
 	}
-	if nodeName != "" {
-		l[nodeNameLabel] = nodeName
-	}
-	return l
 }

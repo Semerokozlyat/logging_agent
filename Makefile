@@ -1,4 +1,4 @@
-.PHONY: build test clean run fmt vet
+.PHONY: build build-all test test-coverage fmt vet
 
 # Build variables
 BINARY_NAME=logging_agent
@@ -8,11 +8,6 @@ BUILD_DIR=bin
 build:
 	@echo "Building..."
 	@go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/logging_agent
-
-# Run the application
-run:
-	@echo "Running..."
-	@go run ./cmd/logging_agent/main.go
 
 # Run tests
 test:
@@ -34,21 +29,6 @@ fmt:
 vet:
 	@echo "Running go vet..."
 	@go vet ./...
-
-# Clean build artifacts
-clean:
-	@echo "Cleaning..."
-	@rm -rf $(BUILD_DIR)
-	@rm -f coverage.out coverage.html
-
-# Install dependencies
-deps:
-	@echo "Installing dependencies..."
-	@go mod download
-	@go mod tidy
-
-# Run all checks
-check: fmt vet test
 
 # Build for multiple platforms
 build-all:

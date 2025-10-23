@@ -1,0 +1,23 @@
+agent:
+  logLevel: info
+
+  outputPath: /var/log/agent.log
+
+  # Will be taken from k8s env vars
+  nodeName: "example-node"
+  podName: "example-pod"
+  namespace: "example-namespace"
+
+  collection:
+    interval: "10s"
+    batchSize: 100
+    maxLineLength: 16384
+    logPaths:
+      - /var/log/system.log
+      - /var/log/install.log
+
+httpServer:
+  address: "127.0.0.1:8080"
+  readTimeout: 5s
+  writeTimeout: 10s
+  idleTimeout: 15s

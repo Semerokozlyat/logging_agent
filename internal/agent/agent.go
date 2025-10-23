@@ -49,14 +49,11 @@ func New(cfg *config.Config) *Agent {
 	log.Printf("Initializing logging agent with configuration: %+v", cfg)
 
 	return &Agent{
-		OutputPath: "/var/log/agent.log",
-		LogPaths: []string{
-			"/var/log/containers/*.log",
-			"/var/log/pods/**/*.log",
-		},
-		CollectionInterval: 10 * time.Second,
-		BatchSize:          100,
-		MaxLineLength:      16384,
+		OutputPath:         cfg.Agent.OutputPath,
+		LogPaths:           cfg.Agent.Collection.LogPaths,
+		CollectionInterval: cfg.Agent.Collection.Interval,
+		BatchSize:          cfg.Agent.Collection.BatchSize,
+		MaxLineLength:      cfg.Agent.Collection.MaxLineLength,
 		Meta: Meta{
 			NodeName:  cfg.Agent.NodeName,
 			PodName:   cfg.Agent.PodName,

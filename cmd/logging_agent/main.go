@@ -1,20 +1,31 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/Semerokozlyat/logging_agent/pkg/agent"
+	"github.com/Semerokozlyat/logging_agent/internal/agent"
+	"github.com/Semerokozlyat/logging_agent/internal/config"
 )
 
 func main() {
-	log.Println("Logging Agent Starting...")
+	log.Println("Logging Agent is Starting...")
+
+	var configPath = flag.String("config", "/etc/logging-agent/config.yaml", "Path to config file.")
+	flag.Parse()
+
+	appConfig, err := config.New(*configPath)
+	if err != nil {
+		log.Fatal("failed to initialize app config", err)
+	}
 
 	// Create agent
-	a := agent.New()
+	agent := agent.New(appConfig)
 
 	// Setup signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -23,18 +34,18 @@ func main() {
 	// Start agent in goroutine
 	errChan := make(chan error, 1)
 	go func() {
-		if err := a.Run(); err != nil {
+		if err := agent.Run(context.Background()); err != nil {
 			errChan <- err
 		}
 	}()
 
-	fmt.Println("Logging Agent Running - Press Ctrl+C to stop")
+	fmt.Println("Logging Agent is Running")
 
 	// Wait for signal or error
 	select {
 	case sig := <-sigChan:
 		log.Printf("Received signal: %v", sig)
-		a.Stop()
+		agent.Stop()
 	case err := <-errChan:
 		log.Fatalf("Agent error: %v", err)
 	}

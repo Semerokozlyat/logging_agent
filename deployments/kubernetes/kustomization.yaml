@@ -25,7 +25,7 @@ images:
 # configMapGenerator:
 #   - name: logging-agent-config
 #     files:
-#       - configs/agent.yaml
+#       - configs/config.yaml
 
 # Patches for different environments
 # patchesStrategicMerge:

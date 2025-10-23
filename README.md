@@ -139,7 +139,7 @@ Customize behavior via ConfigMap (`deployments/kubernetes/configmap.yaml`):
 
 ```yaml
 data:
-  agent.yaml: |
+  config.yaml: |
     log_level: "info"
     log_paths:
       - /var/log/containers/*.log

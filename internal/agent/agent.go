@@ -21,15 +21,11 @@ import (
 
 // Agent represents the logging agent
 type Agent struct {
-	ctx      context.Context
-	cancel   context.CancelFunc
-	wg       sync.WaitGroup
 	logFiles map[string]*os.File
 	logMutex sync.RWMutex
 
 	healthCheckServer *http.Server
 
-	LogLevel           string
 	OutputPath         string
 	LogPaths           []string
 	CollectionInterval time.Duration
@@ -42,13 +38,6 @@ type Agent struct {
 
 // New creates a new Agent instance
 func New(cfg *config.Config) *Agent {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Get configuration from environment
-	nodeName := getEnv("NODE_NAME", "unknown-node")
-	podName := getEnv("POD_NAME", "logging-agent")
-	namespace := getEnv("POD_NAMESPACE", "logging-system")
-	logLevel := getEnv("LOG_LEVEL", "info")
 
 	// Init metrics
 	metrics.InitMetricsCollector()
@@ -56,7 +45,6 @@ func New(cfg *config.Config) *Agent {
 	log.Printf("Initializing logging agent with configuration: %+v", cfg)
 
 	return &Agent{
-		LogLevel:   logLevel,
 		OutputPath: "/var/log/agent.log",
 		LogPaths: []string{
 			"/var/log/containers/*.log",
@@ -65,11 +53,9 @@ func New(cfg *config.Config) *Agent {
 		CollectionInterval: 10 * time.Second,
 		BatchSize:          100,
 		MaxLineLength:      16384,
-		NodeName:           nodeName,
-		PodName:            podName,
-		Namespace:          namespace,
-		ctx:                ctx,
-		cancel:             cancel,
+		NodeName:           cfg.Agent.NodeName,
+		PodName:            cfg.Agent.PodName,
+		Namespace:          cfg.Agent.Namespace,
 		logFiles:           make(map[string]*os.File),
 
 		healthCheckServer: httpserver.NewHealthCheckServer(&cfg.HTTPServer),
@@ -77,11 +63,13 @@ func New(cfg *config.Config) *Agent {
 }
 
 // Run starts the agent
-func (a *Agent) Run() error {
+func (a *Agent) Run(ctx context.Context) error {
 	log.Printf("Starting Logging Agent on node: %s", a.NodeName)
 
+	var wg sync.WaitGroup
+
 	// Start health check server
-	a.wg.Add(1)
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		defer func() {
@@ -97,14 +85,23 @@ func (a *Agent) Run() error {
 	}()
 
 	// Start log collection
-	a.wg.Add(1)
-	go a.collectLogs()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer func() {
+			if p := recover(); p != nil {
+				log.Fatal(fmt.Sprintf("Panic in logs collection goroutine: %s %s", p, debug.Stack()))
+			}
+		}()
+		log.Printf("Start logs collection")
+		a.collectLogs(ctx)
+	}()
 
 	// Wait for context cancellation
-	<-a.ctx.Done()
+	<-ctx.Done()
 
 	log.Println("Shutting down agent...")
-	a.wg.Wait()
+	wg.Wait()
 
 	// Close all open log files
 	a.closeLogFiles()
@@ -116,19 +113,16 @@ func (a *Agent) Run() error {
 // Stop gracefully stops the agent
 func (a *Agent) Stop() {
 	log.Println("Stop signal received")
-	a.cancel()
 }
 
 // collectLogs collects logs from specified paths
-func (a *Agent) collectLogs() {
-	defer a.wg.Done()
-
+func (a *Agent) collectLogs(ctx context.Context) {
 	ticker := time.NewTicker(a.CollectionInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-a.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			a.scanAndProcessLogs()
@@ -247,12 +241,4 @@ func (a *Agent) closeLogFiles() {
 	}
 
 	a.logFiles = make(map[string]*os.File)
-}
-
-// getEnv gets an environment variable with a default value
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

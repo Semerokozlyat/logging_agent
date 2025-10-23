@@ -141,6 +141,9 @@ spec:
         - name: config
           configMap:
             name: logging-agent-config
+            items:
+              - key: configFile
+                path: config.yaml
         - name: tmp
           emptyDir: {}
       

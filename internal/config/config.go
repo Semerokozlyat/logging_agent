@@ -10,6 +10,11 @@ import (
 
 const (
 	defaultLogLevel = "info"
+
+	nodeNameEnvVar  = "NODE_NAME"
+	podNameEnvVar   = "POD_NAME"
+	namespaceEnvVar = "POD_NAMESPACE"
+	logLevelEnvVar  = "LOG_LEVEL"
 )
 
 // AppConfig represents the application configuration
@@ -19,15 +24,19 @@ type Config struct {
 }
 
 type Agent struct {
-	LogLevel           string
-	OutputPath         string
-	LogPaths           []string
-	CollectionInterval time.Duration
-	BatchSize          int
-	MaxLineLength      int
-	NodeName           string
-	PodName            string
-	Namespace          string
+	LogLevel   string     `json:"log_level" yaml:"logLevel"`
+	OutputPath string     `json:"output_path" yaml:"outputPath"`
+	Collection Collection `json:"collection" yaml:"collection"`
+	NodeName   string     `json:"node_name" yaml:"nodeName"`
+	PodName    string     `json:"pod_name" yaml:"podName"`
+	Namespace  string     `json:"namespace" yaml:"namespace"`
+}
+
+type Collection struct {
+	LogPaths      []string      `json:"log_paths" yaml:"logPaths"`
+	Interval      time.Duration `json:"interval" yaml:"interval"`
+	BatchSize     int           `json:"batch_size" yaml:"batchSize"`
+	MaxLineLength int           `json:"max_line_length" yaml:"maxLineLength"`
 }
 
 type HTTPServer struct {
@@ -50,10 +59,10 @@ func New(configFilePath string) (*Config, error) {
 	}
 
 	// Redefine config values from environment vars
-	cfg.Agent.NodeName = getEnv("NODE_NAME", cfg.Agent.NodeName)
-	cfg.Agent.PodName = getEnv("POD_NAME", cfg.Agent.PodName)
-	cfg.Agent.Namespace = getEnv("POD_NAMESPACE", cfg.Agent.Namespace)
-	cfg.Agent.LogLevel = getEnv("LOG_LEVEL", defaultLogLevel)
+	cfg.Agent.NodeName = getEnv(nodeNameEnvVar, cfg.Agent.NodeName)
+	cfg.Agent.PodName = getEnv(podNameEnvVar, cfg.Agent.PodName)
+	cfg.Agent.Namespace = getEnv(namespaceEnvVar, cfg.Agent.Namespace)
+	cfg.Agent.LogLevel = getEnv(logLevelEnvVar, defaultLogLevel)
 
 	return &cfg, nil
 }

@@ -31,10 +31,12 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// Start agent in goroutine
 	errChan := make(chan error, 1)
 	go func() {
-		if err := agent.Run(context.Background()); err != nil {
+		if err := agent.Run(ctx); err != nil {
 			errChan <- err
 		}
 	}()
@@ -45,7 +47,7 @@ func main() {
 	select {
 	case sig := <-sigChan:
 		log.Printf("Received signal: %v", sig)
-		agent.Stop()
+		cancel()
 	case err := <-errChan:
 		log.Fatalf("Agent error: %v", err)
 	}

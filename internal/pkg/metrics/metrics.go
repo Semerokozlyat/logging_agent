@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	LabelLogFileNamePattern = "log_file_name_pattern"
+	nodeNameLabel           = "node_name"
+	logFileNamePatternLabel = "log_file_name_pattern"
 )
 
 var (
@@ -15,7 +16,7 @@ var (
 		Name: "log_lines",
 		Help: "Number of lines of log processed distinguished by log filename pattern",
 	},
-		[]string{LabelLogFileNamePattern},
+		[]string{logFileNamePatternLabel, nodeNameLabel},
 	)
 )
 
@@ -27,4 +28,15 @@ func InitMetricsCollector() {
 			LogLines,
 		)
 	})
+}
+
+func MakeLabelsForLogLine(fileNamePattern, nodeName string) prometheus.Labels {
+	l := make(map[string]string, 2)
+	if fileNamePattern != "" {
+		l[logFileNamePatternLabel] = fileNamePattern
+	}
+	if nodeName != "" {
+		l[nodeNameLabel] = nodeName
+	}
+	return l
 }

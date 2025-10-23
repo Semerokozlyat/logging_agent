@@ -19,6 +19,12 @@ import (
 	"github.com/Semerokozlyat/logging_agent/internal/pkg/metrics"
 )
 
+type Meta struct {
+	NodeName  string
+	PodName   string
+	Namespace string
+}
+
 // Agent represents the logging agent
 type Agent struct {
 	logFiles map[string]*os.File
@@ -31,9 +37,7 @@ type Agent struct {
 	CollectionInterval time.Duration
 	BatchSize          int
 	MaxLineLength      int
-	NodeName           string
-	PodName            string
-	Namespace          string
+	Meta               Meta
 }
 
 // New creates a new Agent instance
@@ -53,10 +57,12 @@ func New(cfg *config.Config) *Agent {
 		CollectionInterval: 10 * time.Second,
 		BatchSize:          100,
 		MaxLineLength:      16384,
-		NodeName:           cfg.Agent.NodeName,
-		PodName:            cfg.Agent.PodName,
-		Namespace:          cfg.Agent.Namespace,
-		logFiles:           make(map[string]*os.File),
+		Meta: Meta{
+			NodeName:  cfg.Agent.NodeName,
+			PodName:   cfg.Agent.PodName,
+			Namespace: cfg.Agent.Namespace,
+		},
+		logFiles: make(map[string]*os.File),
 
 		healthCheckServer: httpserver.NewHealthCheckServer(&cfg.HTTPServer),
 	}
@@ -64,7 +70,7 @@ func New(cfg *config.Config) *Agent {
 
 // Run starts the agent
 func (a *Agent) Run(ctx context.Context) error {
-	log.Printf("Starting Logging Agent on node: %s", a.NodeName)
+	log.Printf("Starting Logging Agent on node: %s", a.Meta.NodeName)
 
 	var wg sync.WaitGroup
 
@@ -103,8 +109,8 @@ func (a *Agent) Run(ctx context.Context) error {
 	log.Println("Shutting down agent...")
 	wg.Wait()
 
-	// Close all open log files
-	a.closeLogFiles()
+	// Stop the agent
+	a.Stop()
 
 	log.Println("Agent stopped gracefully")
 	return nil
@@ -113,6 +119,7 @@ func (a *Agent) Run(ctx context.Context) error {
 // Stop gracefully stops the agent
 func (a *Agent) Stop() {
 	log.Println("Stop signal received")
+	a.closeLogFiles()
 }
 
 // collectLogs collects logs from specified paths
@@ -198,7 +205,7 @@ func (a *Agent) processLogLine(source, line string) {
 	// Extract metadata from log line
 	logEntry := LogEntry{
 		Timestamp: time.Now(),
-		NodeName:  a.NodeName,
+		NodeName:  a.Meta.NodeName,
 		Source:    source,
 		Message:   line,
 		Level:     "info",
@@ -206,6 +213,7 @@ func (a *Agent) processLogLine(source, line string) {
 
 	// Output log entry (to stdout for now)
 	a.outputLog(logEntry)
+	metrics.LogLines.With(metrics.MakeLabelsForLogLine("", logEntry.NodeName)).Add(1) // TODO: filename (sanitized)
 }
 
 // LogEntry represents a structured log entry

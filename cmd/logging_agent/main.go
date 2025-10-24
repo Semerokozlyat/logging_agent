@@ -25,7 +25,10 @@ func main() {
 	}
 
 	// Create agent
-	agent := agent.New(appConfig)
+	agent, err := agent.New(appConfig)
+	if err != nil {
+		log.Fatal("failed to initialize agent instance", err)
+	}
 
 	// Setup signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)

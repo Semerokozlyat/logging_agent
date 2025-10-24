@@ -12,6 +12,7 @@ agent:
     interval: "10s"
     batchSize: 100
     maxLineLength: 16384
+    logChanSize: 10000
     logPaths:
       - /var/log/system.log
       - /var/log/install.log

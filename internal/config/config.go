@@ -33,6 +33,7 @@ type Agent struct {
 }
 
 type Collection struct {
+	LogChanSize   int           `json:"log_chan_size" yaml:"logChanSize"`
 	LogPaths      []string      `json:"log_paths" yaml:"logPaths"`
 	Interval      time.Duration `json:"interval" yaml:"interval"`
 	BatchSize     int           `json:"batch_size" yaml:"batchSize"`

@@ -16,6 +16,7 @@ import (
 
 	"github.com/Semerokozlyat/logging_agent/internal/config"
 	"github.com/Semerokozlyat/logging_agent/internal/httpserver"
+	"github.com/Semerokozlyat/logging_agent/internal/pkg/logaggregator"
 	"github.com/Semerokozlyat/logging_agent/internal/pkg/metrics"
 )
 
@@ -25,12 +26,19 @@ type Meta struct {
 	Namespace string
 }
 
+type LogAggregator interface {
+	Run(ctx context.Context)
+}
+
 // Agent represents the logging agent
 type Agent struct {
 	logFiles map[string]*os.File
 	logMutex sync.RWMutex
 
 	healthCheckServer *http.Server
+
+	logChan       chan logaggregator.LogEntry
+	logAggregator LogAggregator
 
 	OutputPath         string
 	LogPaths           []string
@@ -41,12 +49,18 @@ type Agent struct {
 }
 
 // New creates a new Agent instance
-func New(cfg *config.Config) *Agent {
+func New(cfg *config.Config) (*Agent, error) {
 
 	// Init metrics
 	metrics.InitMetricsCollector()
 
 	log.Printf("Initializing logging agent with configuration: %+v", cfg)
+
+	logChan := make(chan logaggregator.LogEntry, cfg.Agent.Collection.LogChanSize)
+	logAggregator, err := logaggregator.New(logChan)
+	if err != nil {
+		return nil, fmt.Errorf("init log aggregator: %w", err)
+	}
 
 	return &Agent{
 		OutputPath:         cfg.Agent.OutputPath,
@@ -61,8 +75,11 @@ func New(cfg *config.Config) *Agent {
 		},
 		logFiles: make(map[string]*os.File),
 
+		logChan:       logChan,
+		logAggregator: logAggregator,
+
 		healthCheckServer: httpserver.NewHealthCheckServer(&cfg.HTTPServer),
-	}
+	}, nil
 }
 
 // Run starts the agent
@@ -85,6 +102,19 @@ func (a *Agent) Run(ctx context.Context) error {
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal(fmt.Sprintf("Failed to start healthcheck HTTP server on %s: %s", a.healthCheckServer.Addr, err))
 		}
+	}()
+
+	// Start log aggregator
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer func() {
+			if p := recover(); p != nil {
+				log.Fatal(fmt.Sprintf("Panic in logs aggregation goroutine: %s %s", p, debug.Stack()))
+			}
+		}()
+		log.Printf("Start log aggregator")
+		a.logAggregator.Run(ctx)
 	}()
 
 	// Start log collection
@@ -199,39 +229,17 @@ func (a *Agent) tailLogFile(file *os.File, path string) error {
 
 // processLogLine processes a single log line
 func (a *Agent) processLogLine(source, line string) {
-	// Extract metadata from log line
-	logEntry := LogEntry{
+	// Extract metadata and send entry to the aggregator channel
+	logEntry := logaggregator.LogEntry{
 		Timestamp: time.Now(),
 		NodeName:  a.Meta.NodeName,
 		Source:    source,
 		Message:   line,
 		Level:     "info",
 	}
+	a.logChan <- logEntry
 
-	// Output log entry (to stdout for now)
-	a.outputLog(logEntry)
 	metrics.LogLines.With(metrics.MakeLabelsForLogLine("", logEntry.NodeName)).Add(1) // TODO: filename (sanitized)
-}
-
-// LogEntry represents a structured log entry
-type LogEntry struct {
-	Timestamp time.Time `json:"timestamp"`
-	NodeName  string    `json:"node_name"`
-	Source    string    `json:"source"`
-	Message   string    `json:"message"`
-	Level     string    `json:"level"`
-}
-
-// outputLog outputs a log entry
-func (a *Agent) outputLog(entry LogEntry) {
-	// Format as JSON-like output
-	fmt.Printf("[%s] [%s] [%s] %s: %s\n",
-		entry.Timestamp.Format(time.RFC3339),
-		entry.Level,
-		entry.NodeName,
-		entry.Source,
-		entry.Message,
-	)
 }
 
 // closeLogFiles closes all open log files

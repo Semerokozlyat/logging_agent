@@ -28,32 +28,3 @@ spec:
         limits:
           cpu: 50m
           memory: 32Mi
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-json-logger
-  labels:
-    app: json-logger
-spec:
-  containers:
-    - name: json-logger
-      image: busybox
-      command:
-        - sh
-        - -c
-        - |
-          echo "Starting JSON logger..."
-          counter=0
-          while true; do
-            echo "{\"level\":\"info\",\"message\":\"JSON log $counter\",\"timestamp\":\"$(date -Iseconds)\",\"pod\":\"test-json-logger\"}"
-            counter=$((counter+1))
-            sleep 5
-          done
-      resources:
-        requests:
-          cpu: 10m
-          memory: 16Mi
-        limits:
-          cpu: 50m
-          memory: 32Mi

@@ -28,10 +28,10 @@ data:
           - /var/log/pods/**/*.log
 
     loki:
-      url: ""
+      url: {{ .Values.loki.url | quote }}
 
     httpServer:
-      address: ":8080"
+      address: {{ .Values.httpServer.address | quote }}
       readTimeout: 5s
       writeTimeout: 10s
       idleTimeout: 15s

@@ -1,0 +1,9 @@
+
+# Loki configuration
+loki:
+  # URL for Loki push endpoint (e.g., http://loki:3100/loki/api/v1/push)
+  url: ""
+
+# HTTP Server configuration
+httpServer:
+  address: ":8080"

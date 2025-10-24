@@ -1,0 +1,21 @@
+apiVersion: v2
+name: logging-agent
+description: A Helm chart for Kubernetes Node Logging Agent
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+keywords:
+  - logging
+  - monitoring
+  - kubernetes
+  - daemonset
+
+home: https://github.com/Semerokozlyat/logging_agent
+
+maintainers:
+  - name: Semerokozlyat
+    url: https://github.com/Semerokozlyat
+
+sources:
+  - https://github.com/Semerokozlyat/logging_agent

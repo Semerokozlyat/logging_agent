@@ -18,7 +18,7 @@ agent:
       - /var/log/install.log
 
 loki:
-  url: ""
+  url: "http://localhost:3100/loki/api/v1/push"  # port is defined in docker-compose for local testing
 
 httpServer:
   address: "127.0.0.1:8080"

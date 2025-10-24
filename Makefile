@@ -20,6 +20,10 @@ test-coverage:
 	@go test -v -coverprofile=coverage.out ./...
 	@go tool cover -html=coverage.out -o coverage.html
 
+# Run local test env
+test-local-env:
+	./testing/run_local.sh
+
 # Format code
 fmt:
 	@echo "Formatting code..."

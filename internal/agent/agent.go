@@ -241,7 +241,7 @@ func (a *Agent) processLogLine(source, line string) {
 	}
 	a.logChan <- logEntry
 
-	metrics.LogLines.With(metrics.MakeLabelsForLogLine("", logEntry.NodeName)).Add(1) // TODO: filename (sanitized)
+	metrics.LogLines.With(metrics.MakeLabelsForLogLine(source, logEntry.NodeName)).Add(1)
 }
 
 // closeLogFiles closes all open log files

@@ -7,7 +7,10 @@ import (
 	"log"
 	"time"
 
+	"github.com/grafana/loki/v3/clients/pkg/promtail/api"
 	lokiClient "github.com/grafana/loki/v3/clients/pkg/promtail/client"
+	"github.com/grafana/loki/v3/pkg/logproto"
+	"github.com/prometheus/common/model"
 
 	"github.com/Semerokozlyat/logging_agent/internal/config"
 )
@@ -15,6 +18,8 @@ import (
 const (
 	backendTypeStdout = "stdout"
 	backendTypeLoki   = "loki"
+
+	appNameLabel = "logging-agent"
 )
 
 // LogEntry represents a structured log entry
@@ -44,7 +49,7 @@ func New(cfg *config.Config, logChan <-chan LogEntry) (*Aggregator, error) {
 
 	if cfg.Loki.URL.String() != "" {
 		var err error
-		a.lokiClient, err = NewLokiClient(cfg.Loki, cfg.Agent.Collection, nil)
+		a.lokiClient, err = NewLokiClient(cfg.Loki, cfg.Agent.Collection)
 		if err != nil {
 			return nil, fmt.Errorf("init Loki client: %w", err)
 		}
@@ -55,8 +60,23 @@ func New(cfg *config.Config, logChan <-chan LogEntry) (*Aggregator, error) {
 
 func (a *Aggregator) processLogEntry(entry LogEntry) error {
 	if a.backendType == backendTypeLoki {
-		// TODO: build entry correctly
-		a.lokiClient.Chan() <- entry
+		// Convert LogEntry to api.Entry
+		labels := model.LabelSet{
+			"app":    model.LabelValue(appNameLabel),
+			"node":   model.LabelValue(entry.NodeName),
+			"source": model.LabelValue(entry.Source),
+			"level":  model.LabelValue(entry.Level),
+		}
+
+		lokiEntry := api.Entry{
+			Labels: labels,
+			Entry: logproto.Entry{
+				Timestamp: entry.Timestamp,
+				Line:      entry.Message,
+			},
+		}
+
+		a.lokiClient.Chan() <- lokiEntry
 		return nil
 	}
 	fmt.Printf("[%s] [%s] [%s] %s: %s\n",

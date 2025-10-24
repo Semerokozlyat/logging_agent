@@ -28,6 +28,7 @@ type Meta struct {
 
 type LogAggregator interface {
 	Run(ctx context.Context)
+	Stop()
 }
 
 // Agent represents the logging agent
@@ -57,7 +58,7 @@ func New(cfg *config.Config) (*Agent, error) {
 	log.Printf("Initializing logging agent with configuration: %+v", cfg)
 
 	logChan := make(chan logaggregator.LogEntry, cfg.Agent.Collection.LogChanSize)
-	logAggregator, err := logaggregator.New(logChan)
+	logAggregator, err := logaggregator.New(cfg, logChan)
 	if err != nil {
 		return nil, fmt.Errorf("init log aggregator: %w", err)
 	}
@@ -147,6 +148,7 @@ func (a *Agent) Run(ctx context.Context) error {
 func (a *Agent) Stop() {
 	log.Println("Stop signal received")
 	a.closeLogFiles()
+	a.logAggregator.Stop()
 }
 
 // collectLogs collects logs from specified paths

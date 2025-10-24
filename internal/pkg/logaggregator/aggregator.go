@@ -32,7 +32,7 @@ type Aggregator struct {
 	lokiClient  lokiClient.Client
 }
 
-func New(cfg config.Config, logChan <-chan LogEntry) (*Aggregator, error) {
+func New(cfg *config.Config, logChan <-chan LogEntry) (*Aggregator, error) {
 	if logChan == nil {
 		return nil, errors.New("log channel is not initialized")
 	}
@@ -54,6 +54,11 @@ func New(cfg config.Config, logChan <-chan LogEntry) (*Aggregator, error) {
 }
 
 func (a *Aggregator) processLogEntry(entry LogEntry) error {
+	if a.backendType == backendTypeLoki {
+		// TODO: build entry correctly
+		a.lokiClient.Chan() <- entry
+		return nil
+	}
 	fmt.Printf("[%s] [%s] [%s] %s: %s\n",
 		entry.Timestamp.Format(time.RFC3339),
 		entry.Level,
@@ -67,7 +72,11 @@ func (a *Aggregator) processLogEntry(entry LogEntry) error {
 func (a *Aggregator) Run(ctx context.Context) {
 	for {
 		select {
-		case entry := <-a.logChan:
+		case entry, ok := <-a.logChan:
+			if !ok {
+				log.Print("log aggregator channel is closed, exiting")
+				return
+			}
 			err := a.processLogEntry(entry)
 			if err != nil {
 				log.Printf("failed to process log entry: %s", err)
@@ -76,5 +85,11 @@ func (a *Aggregator) Run(ctx context.Context) {
 			log.Print("aggregator caught stop signal from context")
 			return
 		}
+	}
+}
+
+func (a *Aggregator) Stop() {
+	if a.lokiClient != nil {
+		a.lokiClient.Stop()
 	}
 }

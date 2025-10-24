@@ -6,6 +6,15 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	lokiClient "github.com/grafana/loki/v3/clients/pkg/promtail/client"
+
+	"github.com/Semerokozlyat/logging_agent/internal/config"
+)
+
+const (
+	backendTypeStdout = "stdout"
+	backendTypeLoki   = "loki"
 )
 
 // LogEntry represents a structured log entry
@@ -18,16 +27,30 @@ type LogEntry struct {
 }
 
 type Aggregator struct {
-	logChan <-chan LogEntry
+	logChan     <-chan LogEntry
+	backendType string
+	lokiClient  lokiClient.Client
 }
 
-func New(logChan <-chan LogEntry) (*Aggregator, error) {
+func New(cfg config.Config, logChan <-chan LogEntry) (*Aggregator, error) {
 	if logChan == nil {
 		return nil, errors.New("log channel is not initialized")
 	}
-	return &Aggregator{
-		logChan: logChan,
-	}, nil
+
+	a := Aggregator{
+		logChan:     logChan,
+		backendType: backendTypeStdout,
+	}
+
+	if cfg.Loki.URL.String() != "" {
+		var err error
+		a.lokiClient, err = NewLokiClient(cfg.Loki, cfg.Agent.Collection, nil)
+		if err != nil {
+			return nil, fmt.Errorf("init Loki client: %w", err)
+		}
+		a.backendType = backendTypeLoki
+	}
+	return &a, nil
 }
 
 func (a *Aggregator) processLogEntry(entry LogEntry) error {

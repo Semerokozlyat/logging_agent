@@ -17,6 +17,9 @@ agent:
       - /var/log/system.log
       - /var/log/install.log
 
+loki:
+  url: ""
+
 httpServer:
   address: "127.0.0.1:8080"
   readTimeout: 5s

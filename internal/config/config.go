@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"go.yaml.in/yaml/v2"
+
+	lokiClient "github.com/grafana/loki/v3/clients/pkg/promtail/client"
 )
 
 const (
@@ -19,8 +21,9 @@ const (
 
 // AppConfig represents the application configuration
 type Config struct {
-	Agent      Agent      `json:"agent" yaml:"agent"`
-	HTTPServer HTTPServer `json:"http_server" yaml:"httpServer"`
+	Agent      Agent             `json:"agent" yaml:"agent"`
+	HTTPServer HTTPServer        `json:"http_server" yaml:"httpServer"`
+	Loki       lokiClient.Config `json:"loki" yaml:"loki"`
 }
 
 type Agent struct {

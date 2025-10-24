@@ -27,6 +27,9 @@ data:
           - /var/log/containers/*.log
           - /var/log/pods/**/*.log
 
+    loki:
+      url: ""
+
     httpServer:
       address: ":8080"
       readTimeout: 5s

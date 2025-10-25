@@ -33,8 +33,9 @@ type LogAggregator interface {
 
 // Agent represents the logging agent
 type Agent struct {
-	logFiles map[string]*os.File
-	logMutex sync.RWMutex
+	logFiles    map[string]*os.File
+	fileOffsets map[string]int64 // Track read position for each file
+	logMutex    sync.RWMutex
 
 	healthCheckServer *http.Server
 
@@ -44,7 +45,7 @@ type Agent struct {
 	OutputPath         string
 	LogPaths           []string
 	CollectionInterval time.Duration
-	BatchSize          int
+	LinesBatchSize     int
 	MaxLineLength      int
 	Meta               Meta
 }
@@ -67,14 +68,15 @@ func New(cfg *config.Config) (*Agent, error) {
 		OutputPath:         cfg.Agent.OutputPath,
 		LogPaths:           cfg.Agent.Collection.LogPaths,
 		CollectionInterval: cfg.Agent.Collection.Interval,
-		BatchSize:          cfg.Agent.Collection.BatchSize,
+		LinesBatchSize:     cfg.Agent.Collection.BatchSize,
 		MaxLineLength:      cfg.Agent.Collection.MaxLineLength,
 		Meta: Meta{
 			NodeName:  cfg.Agent.NodeName,
 			PodName:   cfg.Agent.PodName,
 			Namespace: cfg.Agent.Namespace,
 		},
-		logFiles: make(map[string]*os.File),
+		logFiles:    make(map[string]*os.File),
+		fileOffsets: make(map[string]int64),
 
 		logChan:       logChan,
 		logAggregator: logAggregator,
@@ -171,13 +173,13 @@ func (a *Agent) scanAndProcessLogs() {
 	for _, pattern := range a.LogPaths {
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
-			log.Printf("Error globbing pattern %s: %v", pattern, err)
+			log.Printf("Error globbing pattern %s: %s", pattern, err)
 			continue
 		}
 
 		for _, path := range matches {
 			if err := a.processLogFile(path); err != nil {
-				log.Printf("Error processing log file %s: %v", path, err)
+				log.Printf("Error processing log file %s: %s", path, err)
 			}
 		}
 	}
@@ -185,16 +187,16 @@ func (a *Agent) scanAndProcessLogs() {
 
 // processLogFile reads and processes a single log file
 func (a *Agent) processLogFile(path string) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
+	a.logMutex.Lock()
+	defer a.logMutex.Unlock()
 
-	// Get file info
-	info, err := file.Stat()
+	// Get file info to check if file exists and get current size
+	info, err := os.Stat(path)
 	if err != nil {
-		return fmt.Errorf("failed to stat file: %w", err)
+		// If file doesn't exist, clean up tracking
+		delete(a.logFiles, path)
+		delete(a.fileOffsets, path)
+		return fmt.Errorf("stat file: %w", err)
 	}
 
 	// Skip if file is empty
@@ -202,28 +204,72 @@ func (a *Agent) processLogFile(path string) error {
 		return nil
 	}
 
-	// Read last N lines (tail behavior)
+	// Check if file has been rotated (size is smaller than our offset)
+	if lastOffset, exists := a.fileOffsets[path]; exists && info.Size() < lastOffset {
+		log.Printf("Log rotation detected for %s, resetting offset", path)
+		// Close old file handle
+		if file, ok := a.logFiles[path]; ok {
+			file.Close()
+			delete(a.logFiles, path)
+		}
+		delete(a.fileOffsets, path)
+	}
+
+	// Get or open file handle
+	file, exists := a.logFiles[path]
+	if !exists {
+		file, err = os.Open(path)
+		if err != nil {
+			return fmt.Errorf("open file: %w", err)
+		}
+		a.logFiles[path] = file
+
+		// For new files, seek to end to only process new content
+		offset, err := file.Seek(0, io.SeekEnd)
+		if err != nil {
+			return fmt.Errorf("seek to end: %w", err)
+		}
+		a.fileOffsets[path] = offset
+		log.Printf("Started tracking file %s at offset %d", path, offset)
+		return nil // Don't read on first open, start fresh
+	}
+
+	// Seek to last known position
+	lastOffset := a.fileOffsets[path]
+	if _, err := file.Seek(lastOffset, io.SeekStart); err != nil {
+		return fmt.Errorf("seek to offset %d: %w", lastOffset, err)
+	}
+
+	// Read and process new content
 	return a.tailLogFile(file, path)
 }
 
-// tailLogFile reads the last few lines from a log file
+// tailLogFile reads new lines from the current position of a log file
+// Reads exactly 100 lines per call (or fewer if less are available)
 func (a *Agent) tailLogFile(file *os.File, path string) error {
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, a.MaxLineLength), a.MaxLineLength)
 
 	lineCount := 0
-	for scanner.Scan() {
+	for scanner.Scan() && lineCount < a.LinesBatchSize {
 		line := scanner.Text()
 		a.processLogLine(path, line)
 		lineCount++
-
-		if lineCount >= a.BatchSize {
-			break
-		}
 	}
 
-	if err := scanner.Err(); err != nil && err != io.EOF {
+	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("scanner error: %w", err)
+	}
+
+	// Update the file offset to current position
+	currentOffset, err := file.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return fmt.Errorf("get current offset: %w", err)
+	}
+	a.fileOffsets[path] = currentOffset
+
+	if lineCount > 0 {
+		log.Printf("Processed %d new lines from %s", lineCount, path)
 	}
 
 	return nil
@@ -256,4 +302,5 @@ func (a *Agent) closeLogFiles() {
 	}
 
 	a.logFiles = make(map[string]*os.File)
+	a.fileOffsets = make(map[string]int64)
 }

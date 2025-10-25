@@ -9,7 +9,7 @@ agent:
   namespace: "example-namespace"
 
   collection:
-    interval: "10s"
+    interval: 1s
     batchSize: 100
     maxLineLength: 16384
     logChanSize: 10000

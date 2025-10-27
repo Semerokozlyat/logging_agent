@@ -28,10 +28,6 @@ FROM alpine:latest
 # Install ca-certificates for HTTPS connections
 RUN apk --no-cache add ca-certificates tzdata
 
-# Create non-root user
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser
-
 # Set working directory
 WORKDIR /app
 
@@ -41,11 +37,8 @@ COPY --from=builder /build/logging_agent .
 # Copy config directory structure (if needed)
 RUN mkdir -p /etc/logging-agent
 
-# Change ownership
-RUN chown -R appuser:appuser /app /etc/logging-agent
-
-# Switch to non-root user
-USER appuser
+# Note: Running as root is required for accessing /var/log/containers/ on Kubernetes nodes
+# The Kubernetes securityContext will handle user permissions
 
 # Expose health check port
 EXPOSE 8080

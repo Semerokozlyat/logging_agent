@@ -10,15 +10,16 @@ How to deploy logging-agent on a k8s cluster with customized settings.
 docker build -f deployments/docker/Dockerfile -t logging-agent:latest .
 ```
 
-3. Install Helm chart from the directory:
+3. Install Helm chart from the directory with default parameters:
 ```bash
 helm install logging-agent deployments/helm/logging-agent
 ```
 
-or install with custom Loki service URL:
+3.1 (or) Install with custom parameters (Loki server URL, namespace, docker image):
 ```bash
 helm install logging-agent deployments/helm/logging-agent \
-  --set loki.url="http://loki:3100/loki/api/v1/push"
+  --set loki.url="http://loki:3100/loki/api/v1/push" \
+  --set kubernetes.customNamespaceName="default"
 ```
 
 ### Uninstall

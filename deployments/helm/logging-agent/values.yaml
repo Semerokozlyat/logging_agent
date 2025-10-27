@@ -1,4 +1,9 @@
 
+
+# docker image configuration
+docker:
+  image: logging-agent:latest
+
 # k8s namespace configuration
 kubernetes:
   customNamespaceName: default

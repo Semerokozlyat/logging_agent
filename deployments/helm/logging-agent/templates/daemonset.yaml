@@ -28,6 +28,12 @@ spec:
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
       
+      # Pod-level security context
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+      
       # Tolerations to run on all nodes including master
       tolerations:
         - operator: Exists
@@ -44,20 +50,20 @@ spec:
       
       containers:
         - name: logging-agent
-          image: logging-agent:latest
+          image: {{ .Values.docker.image }}
           imagePullPolicy: IfNotPresent
           
           # Security context
           securityContext:
             privileged: false
             readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            runAsUser: 1000
+            runAsUser: 0                    # Run as root to access log files
             capabilities:
               drop:
                 - ALL
               add:
-                - DAC_READ_SEARCH  # Read any file
+                - DAC_READ_SEARCH           # Read any file
+                - DAC_OVERRIDE              # Bypass file read permission checks
           
           # Environment variables
           env:

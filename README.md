@@ -21,12 +21,15 @@ The `processLogEntry` method from the `internal/pkg/logaggregator/logaggregator.
 ## How to check locally
 
 1. Build application binary:
+
     `make build`
 
 2. Run local instance of Loki (in a separate terminal window, it starts attached):
+
     `make test-local-env`
 
 3. Edit [local config file](tests/example.config.yaml) and add log files to be watched:
+
     ```
     collection:
         logPaths:
@@ -36,6 +39,7 @@ The `processLogEntry` method from the `internal/pkg/logaggregator/logaggregator.
     ```
 
 3. Run app with pre-defined config:
+
     `bin/logging_agent -config tests/example.config.yaml`
 
 

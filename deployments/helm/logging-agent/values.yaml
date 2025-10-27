@@ -1,4 +1,9 @@
 
+# k8s namespace configuration
+kubernetes:
+  customNamespaceName: default
+  createCustomNamespace: false
+
 # Loki configuration
 loki:
   # URL for Loki push endpoint (e.g., http://loki:3100/loki/api/v1/push)

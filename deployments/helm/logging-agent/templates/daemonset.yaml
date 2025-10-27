@@ -1,16 +1,14 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: logging-agent
-  namespace: logging-system
+  name: {{ include "logging-agent.fullname" . }}
+  namespace: {{ include "logging-agent.namespace" . }}
   labels:
-    app.kubernetes.io/name: logging-agent
-    app.kubernetes.io/component: monitoring
-    app.kubernetes.io/version: "1.0.0"
+    {{- include "logging-agent.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: logging-agent
+      {{- include "logging-agent.selectorLabels" . | nindent 6 }}
   updateStrategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,15 +16,14 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: logging-agent
+        {{- include "logging-agent.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: monitoring
-        app.kubernetes.io/version: "1.0.0"
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
         prometheus.io/path: "/metrics"
     spec:
-      serviceAccountName: logging-agent
+      serviceAccountName: {{ include "logging-agent.fullname" . }}
       hostNetwork: true
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
@@ -140,7 +137,7 @@ spec:
             type: DirectoryOrCreate
         - name: config
           configMap:
-            name: logging-agent-config
+            name: {{ include "logging-agent.fullname" . }}-config
             items:
               - key: configFile
                 path: config.yaml

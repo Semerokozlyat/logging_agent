@@ -1,7 +1,8 @@
+{{- if .Values.kubernetes.createCustomNamespace }}
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: logging-system
+  name: {{ include "logging-agent.namespace" . }}
   labels:
-    app.kubernetes.io/name: logging-agent
-    app.kubernetes.io/component: monitoring
+    {{- include "logging-agent.labels" . | nindent 4 }}
+{{- end }}

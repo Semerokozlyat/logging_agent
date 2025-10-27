@@ -1,11 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: logging-agent-config
-  namespace: logging-system
+  name: {{ include "logging-agent.fullname" . }}-config
+  namespace: {{ include "logging-agent.namespace" . }}
   labels:
-    app.kubernetes.io/name: logging-agent
-    app.kubernetes.io/component: monitoring
+    {{- include "logging-agent.labels" . | nindent 4 }}
 data:
   configFile: |
     agent:
